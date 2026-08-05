@@ -1,0 +1,94 @@
+# OSI Metrics: Data Quality Metric Patterns
+# Contributed by: GS1 (via Snowflake Data Metric Functions)
+# Apache Ossie (Incubating) — Open Semantic Interchange
+# License: Apache 2.0
+#
+# Generic data quality metric definitions applicable to any dataset.
+# No specific thresholds or member data included.
+
+osi_version: "0.1"
+type: metrics
+
+metrics:
+  - name: data_freshness
+    description: "Time elapsed since a dataset was last modified — measures pipeline liveness"
+    category: timeliness
+    aggregation: MAX
+    unit: seconds
+    applicable_to: any_dataset
+    implementation_hint: "Compare last_modified_timestamp to current_timestamp"
+
+  - name: null_count
+    description: "Count of NULL values in a required column — measures data completeness"
+    category: completeness
+    aggregation: COUNT
+    unit: rows
+    applicable_to: required_columns
+    implementation_hint: "COUNT(*) WHERE column IS NULL"
+
+  - name: null_percent
+    description: "Percentage of NULL values in a column — normalised completeness indicator"
+    category: completeness
+    aggregation: RATIO
+    unit: percent
+    applicable_to: required_columns
+    implementation_hint: "COUNT_IF(column IS NULL) / COUNT(*) * 100"
+
+  - name: duplicate_count
+    description: "Count of duplicate values in a primary key column — measures uniqueness"
+    category: uniqueness
+    aggregation: COUNT
+    unit: rows
+    applicable_to: primary_key_columns
+    implementation_hint: "COUNT(*) - COUNT(DISTINCT key_column)"
+    alert_condition: "Any value > 0 indicates a data integrity issue"
+
+  - name: unique_count
+    description: "Count of distinct non-null values — measures cardinality"
+    category: uniqueness
+    aggregation: COUNT
+    unit: distinct_values
+    applicable_to: identifier_columns
+    implementation_hint: "COUNT(DISTINCT column) WHERE column IS NOT NULL"
+
+  - name: row_count
+    description: "Total number of rows in the dataset — baseline for volume monitoring"
+    category: volume
+    aggregation: COUNT
+    unit: rows
+    applicable_to: any_dataset
+    implementation_hint: "COUNT(*)"
+    alert_condition: "Sudden drops indicate data loss; stagnation indicates pipeline failure"
+
+  - name: avg_value
+    description: "Average of a numeric measure — detects distribution drift over time"
+    category: distribution
+    aggregation: AVG
+    unit: varies
+    applicable_to: numeric_columns
+    implementation_hint: "AVG(column)"
+
+  - name: min_value
+    description: "Minimum observed value — detects floor violations or outliers"
+    category: distribution
+    aggregation: MIN
+    unit: varies
+    applicable_to: numeric_columns
+    implementation_hint: "MIN(column)"
+
+  - name: blank_percent
+    description: "Percentage of empty/whitespace-only strings — measures data density in text fields"
+    category: completeness
+    aggregation: RATIO
+    unit: percent
+    applicable_to: text_columns
+    implementation_hint: "COUNT_IF(TRIM(column) = '' OR column IS NULL) / COUNT(*) * 100"
+
+  - name: schema_change_count
+    description: "Number of schema modifications (columns added/removed/renamed) — measures stability"
+    category: stability
+    aggregation: COUNT
+    unit: changes
+    applicable_to: any_dataset
+    implementation_hint: "Compare current schema hash to previous snapshot"
+    alert_condition: "Any unexpected change should trigger pipeline review"

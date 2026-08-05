@@ -1,0 +1,72 @@
+# OSI Dataset: Product Classification Taxonomy
+# Contributed by: GS1 (via Snowflake Semantic Views)
+# Apache Ossie (Incubating) — Open Semantic Interchange
+# License: Apache 2.0
+#
+# This dataset represents a generic hierarchical product classification
+# system. It is derived from the GS1 GPC (Global Product Classification)
+# structure but contains NO proprietary GS1 data values.
+
+osi_version: "0.1"
+type: dataset
+
+dataset:
+  name: product_classification_taxonomy
+  description: >
+    A hierarchical product classification system with four levels:
+    Segment (broadest) > Family > Class > Brick (most granular).
+    Commonly used in retail, FMCG, and supply chain to categorise
+    trade items for data exchange, analytics, and regulatory reporting.
+  domain: retail_supply_chain
+  source_standard: "GS1 GPC (Global Product Classification)"
+  license_note: "Structure only — no proprietary GS1 data values included"
+
+  columns:
+    - name: brick_code
+      data_type: VARCHAR(10)
+      role: primary_key
+      description: "Unique identifier for the most granular classification level (Brick)"
+
+    - name: brick_name
+      data_type: VARCHAR(255)
+      role: dimension
+      description: "Human-readable name of the Brick category"
+
+    - name: class_code
+      data_type: VARCHAR(10)
+      role: foreign_key
+      description: "Parent Class code — groups related Bricks"
+
+    - name: class_name
+      data_type: VARCHAR(255)
+      role: dimension
+      description: "Human-readable name of the Class"
+
+    - name: family_code
+      data_type: VARCHAR(10)
+      role: foreign_key
+      description: "Parent Family code — groups related Classes"
+
+    - name: family_name
+      data_type: VARCHAR(255)
+      role: dimension
+      description: "Human-readable name of the Family"
+
+    - name: segment_code
+      data_type: VARCHAR(10)
+      role: foreign_key
+      description: "Top-level Segment code — broadest categorisation"
+
+    - name: segment_name
+      data_type: VARCHAR(255)
+      role: dimension
+      description: "Human-readable name of the Segment (e.g., Food/Beverage/Tobacco)"
+
+  hierarchy:
+    name: product_category_hierarchy
+    levels:
+      - segment_name
+      - family_name
+      - class_name
+      - brick_name
+    description: "Four-level taxonomy from broadest (Segment) to most specific (Brick)"

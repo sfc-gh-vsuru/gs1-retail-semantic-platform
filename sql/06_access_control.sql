@@ -1,0 +1,108 @@
+-- ============================================================
+-- GS1 Retail Observability Platform
+-- File: sql/06_access_control.sql
+-- Purpose: Tags, Row Access Policies, Masking Policies
+-- Run as: GS1_PLATFORM_ADMIN / ACCOUNTADMIN
+-- ============================================================
+
+USE ROLE GS1_PLATFORM_ADMIN;
+USE WAREHOUSE GS1_WH;
+USE DATABASE GS1_RETAIL_DB;
+
+-- ============================================================
+-- Object Tags (IP and data classification)
+-- ============================================================
+
+CREATE OR REPLACE TAG GS1_RETAIL_DB.GOVERNANCE.GS1_PROPRIETARY
+  ALLOWED_VALUES = 'TRUE', 'FALSE'
+  COMMENT = 'GS1 proprietary IP — must remain within Snowflake secure perimeter';
+
+CREATE OR REPLACE TAG GS1_RETAIL_DB.GOVERNANCE.OSI_ELIGIBLE
+  ALLOWED_VALUES = 'TRUE', 'FALSE'
+  COMMENT = 'Approved for sanitised export to OSI/Apache Ossie (structure only, no member data)';
+
+CREATE OR REPLACE TAG GS1_RETAIL_DB.GOVERNANCE.MEMBER_CONFIDENTIAL
+  ALLOWED_VALUES = 'TRUE', 'FALSE'
+  COMMENT = 'Contains GS1 member-specific confidential data — access restricted by row policy';
+
+CREATE OR REPLACE TAG GS1_RETAIL_DB.GOVERNANCE.PII_SENSITIVE
+  ALLOWED_VALUES = 'TRUE', 'FALSE'
+  COMMENT = 'Contains personally identifiable information — masking policy applied';
+
+-- Apply tags to tables
+ALTER TABLE GS1_RETAIL_DB.IDENTITY.GTIN_REGISTRY
+  SET TAG GS1_RETAIL_DB.GOVERNANCE.GS1_PROPRIETARY    = 'TRUE',
+          GS1_RETAIL_DB.GOVERNANCE.MEMBER_CONFIDENTIAL = 'TRUE',
+          GS1_RETAIL_DB.GOVERNANCE.OSI_ELIGIBLE        = 'FALSE';
+
+ALTER TABLE GS1_RETAIL_DB.IDENTITY.GLN_REGISTRY
+  SET TAG GS1_RETAIL_DB.GOVERNANCE.GS1_PROPRIETARY    = 'TRUE',
+          GS1_RETAIL_DB.GOVERNANCE.MEMBER_CONFIDENTIAL = 'TRUE',
+          GS1_RETAIL_DB.GOVERNANCE.OSI_ELIGIBLE        = 'FALSE';
+
+ALTER TABLE GS1_RETAIL_DB.PRODUCT_MASTER.PRODUCT_ATTRIBUTES
+  SET TAG GS1_RETAIL_DB.GOVERNANCE.GS1_PROPRIETARY    = 'TRUE',
+          GS1_RETAIL_DB.GOVERNANCE.OSI_ELIGIBLE        = 'FALSE';
+
+ALTER TABLE GS1_RETAIL_DB.CLASSIFICATION.GPC_TAXONOMY
+  SET TAG GS1_RETAIL_DB.GOVERNANCE.GS1_PROPRIETARY    = 'FALSE',
+          GS1_RETAIL_DB.GOVERNANCE.OSI_ELIGIBLE        = 'TRUE';
+
+ALTER TABLE GS1_RETAIL_DB.SUPPLY_CHAIN.EPCIS_OBJECT_EVENTS
+  SET TAG GS1_RETAIL_DB.GOVERNANCE.GS1_PROPRIETARY    = 'TRUE',
+          GS1_RETAIL_DB.GOVERNANCE.MEMBER_CONFIDENTIAL = 'TRUE',
+          GS1_RETAIL_DB.GOVERNANCE.OSI_ELIGIBLE        = 'FALSE';
+
+ALTER TABLE GS1_RETAIL_DB.MEMBERS.COMPANY_REGISTRY
+  SET TAG GS1_RETAIL_DB.GOVERNANCE.MEMBER_CONFIDENTIAL = 'TRUE',
+          GS1_RETAIL_DB.GOVERNANCE.PII_SENSITIVE        = 'FALSE';
+
+-- ============================================================
+-- Dynamic Data Masking — GCP prefix (member IP)
+-- Only GS1_PLATFORM_ADMIN sees full value; others see masked
+-- ============================================================
+
+CREATE OR REPLACE MASKING POLICY GS1_RETAIL_DB.GOVERNANCE.MASK_GCP_PREFIX
+  AS (val STRING) RETURNS STRING ->
+  CASE
+    WHEN CURRENT_ROLE() IN ('GS1_PLATFORM_ADMIN', 'SYSADMIN', 'ACCOUNTADMIN')
+    THEN val
+    ELSE '*******'   -- 7-digit prefix masked for non-admin roles
+  END
+COMMENT = 'Masks GS1 Company Prefix from non-admin roles';
+
+ALTER TABLE GS1_RETAIL_DB.IDENTITY.GTIN_REGISTRY
+  MODIFY COLUMN gcp_prefix
+  SET MASKING POLICY GS1_RETAIL_DB.GOVERNANCE.MASK_GCP_PREFIX;
+
+ALTER TABLE GS1_RETAIL_DB.IDENTITY.GLN_REGISTRY
+  MODIFY COLUMN gcp_prefix
+  SET MASKING POLICY GS1_RETAIL_DB.GOVERNANCE.MASK_GCP_PREFIX;
+
+-- ============================================================
+-- Grant table access to roles
+-- ============================================================
+
+-- CLASSIFICATION (public GPC taxonomy — all roles can read)
+GRANT SELECT ON ALL TABLES IN SCHEMA GS1_RETAIL_DB.CLASSIFICATION
+  TO ROLE GS1_ANALYST;
+
+-- PRODUCT_MASTER — data engineers and above
+GRANT SELECT ON ALL TABLES IN SCHEMA GS1_RETAIL_DB.PRODUCT_MASTER
+  TO ROLE GS1_DATA_ENGINEER;
+
+-- IDENTITY — platform admin only
+GRANT SELECT ON ALL TABLES IN SCHEMA GS1_RETAIL_DB.IDENTITY
+  TO ROLE GS1_PLATFORM_ADMIN;
+
+-- SUPPLY_CHAIN — data engineers and above
+GRANT SELECT ON ALL TABLES IN SCHEMA GS1_RETAIL_DB.SUPPLY_CHAIN
+  TO ROLE GS1_DATA_ENGINEER;
+
+-- VERIFICATION — platform admin and data engineer
+GRANT SELECT ON ALL TABLES IN SCHEMA GS1_RETAIL_DB.VERIFICATION
+  TO ROLE GS1_DATA_ENGINEER;
+
+-- SEMANTIC — analysts can query semantic view
+GRANT SELECT ON ALL SEMANTIC VIEWS IN SCHEMA GS1_RETAIL_DB.SEMANTIC
+  TO ROLE GS1_ANALYST;

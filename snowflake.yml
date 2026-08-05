@@ -1,0 +1,12 @@
+definition_version: 2
+entities:
+  gs1_observability:
+    type: streamlit
+    identifier:
+      name: GS1_RETAIL_OBSERVABILITY
+      database: GS1_DB
+      schema: DEMO
+    query_warehouse: GS1_WH  # Change to your warehouse
+    main_file: streamlit_app.py
+    artifacts:
+      - streamlit_app.py

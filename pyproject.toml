@@ -1,0 +1,9 @@
+[project]
+name = "gs1-retail-observability"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "snowflake-connector-python>=3.3.0",
+    "streamlit>=1.35.0",
+    "snowflake-snowpark-python>=1.17.0",
+]

@@ -1,0 +1,439 @@
+name: GS1 Retail Semantic Model
+description: >
+  Semantic model for GS1 Retail Observability Platform.
+  Covers product master data (GDSN/GDM), supply chain events (EPCIS),
+  location registry (GLN), product classification (GPC), and data quality metrics.
+  Participants: GS1 Global (standards body), NovaBrand Foods Ltd (brand owner/supplier),
+  FreshMart Retail Group (retailer).
+
+tables:
+  - name: product
+    description: GDM Global Core product attributes per GTIN — synced via GDSN from NovaBrand Foods Ltd
+    base_table: GS1_RETAIL_DB.PRODUCT_MASTER.PRODUCT_ATTRIBUTES
+    filters:
+      - name: active_products
+        synonyms: [active GTINs, live products]
+        description: Only active GTINs in the product master
+        expr: gtin_status = 'ACTIVE'
+    dimensions:
+      - name: gtin
+        synonyms: [product id, barcode, GTIN, trade item number]
+        description: 14-digit Global Trade Item Number — unique product identifier issued by GS1
+        expr: gtin
+        data_type: TEXT
+      - name: brand_name
+        synonyms: [brand, manufacturer brand]
+        description: Brand name as registered in GDSN (NovaBrand for all products in this dataset)
+        expr: brand_name
+        data_type: TEXT
+      - name: product_name
+        synonyms: [product, item name, SKU name, description]
+        description: Short product description as published to GDSN
+        expr: product_description_short
+        data_type: TEXT
+      - name: gtin_status
+        synonyms: [product status, active or inactive, lifecycle status]
+        description: Current status of the GTIN — ACTIVE, INACTIVE, or RETIRED
+        expr: gtin_status
+        data_type: TEXT
+      - name: packaging_type
+        synonyms: [pack type, packaging, pack format]
+        description: Physical packaging format (BOX, BAG, BOTTLE, TUB, CARTON, WRAPPER)
+        expr: packaging_type
+        data_type: TEXT
+      - name: country_of_origin
+        synonyms: [origin, made in, sourced from, origin country]
+        description: ISO 3166-1 alpha-2 country code where the product was manufactured
+        expr: country_of_origin
+        data_type: TEXT
+      - name: gpc_brick_name
+        synonyms: [category, product category, product type, GPC brick]
+        description: GPC Brick classification — most granular product category
+        expr: gpc_brick_name
+        data_type: TEXT
+      - name: last_sync_date
+        synonyms: [sync date, GDSN sync, last synced, data freshness]
+        description: Date and time of the most recent GDSN product data synchronisation
+        expr: gdsn_last_sync_date::DATE
+        data_type: DATE
+      - name: registration_date
+        synonyms: [GTIN registered, first registered]
+        description: Date the GTIN was first registered with GS1
+        expr: gtin_registration_date
+        data_type: DATE
+    measures:
+      - name: total_gtins
+        synonyms: [GTIN count, product count, number of products, how many products]
+        description: Total number of registered GTINs (all statuses)
+        expr: COUNT(gtin)
+        data_type: NUMBER
+      - name: active_gtin_count
+        synonyms: [active products, live GTINs, active SKUs]
+        description: Number of GTINs with ACTIVE status
+        expr: COUNT_IF(gtin_status = 'ACTIVE')
+        data_type: NUMBER
+      - name: avg_completeness
+        synonyms: [average completeness, mean data quality, avg attribute fill rate]
+        description: Average GDM attribute completeness score across all products (0-100%)
+        expr: ROUND(AVG(attribute_completeness_pct), 2)
+        data_type: NUMBER
+      - name: min_completeness
+        synonyms: [lowest completeness, worst data quality, minimum quality]
+        description: Lowest product data completeness score across all GTINs
+        expr: ROUND(MIN(attribute_completeness_pct), 2)
+        data_type: NUMBER
+      - name: incomplete_products
+        synonyms: [products needing enrichment, low quality products, below 95%]
+        description: Number of GTINs with attribute completeness below 95%
+        expr: COUNT_IF(attribute_completeness_pct < 95)
+        data_type: NUMBER
+      - name: days_since_oldest_sync
+        synonyms: [data staleness, oldest sync, max freshness lag]
+        description: Days since the oldest GDSN sync across all products
+        expr: DATEDIFF('day', MIN(gdsn_last_sync_date), CURRENT_TIMESTAMP())
+        data_type: NUMBER
+
+  - name: location
+    description: GLN Registry — all party and location identifiers for NovaBrand Foods Ltd and FreshMart Retail Group
+    base_table: GS1_RETAIL_DB.IDENTITY.GLN_REGISTRY
+    dimensions:
+      - name: gln
+        synonyms: [location id, GLN, location number]
+        description: 13-digit Global Location Number — unique identifier for a party or location
+        expr: gln
+        data_type: TEXT
+      - name: party_name
+        synonyms: [location name, company name, party, site name]
+        description: Name of the party or location (store, warehouse, factory, HQ)
+        expr: party_name
+        data_type: TEXT
+      - name: location_type
+        synonyms: [site type, facility type, location category]
+        description: Type of location (HQ, FACTORY, DC, STORE, WAREHOUSE)
+        expr: location_type
+        data_type: TEXT
+      - name: city
+        synonyms: [town, city name]
+        description: City where the location is based
+        expr: city
+        data_type: TEXT
+      - name: country
+        synonyms: [country code, nation]
+        description: ISO 3166-1 alpha-2 country code
+        expr: country_code
+        data_type: TEXT
+    measures:
+      - name: total_locations
+        synonyms: [location count, number of locations, site count]
+        description: Total number of registered GLN locations
+        expr: COUNT(gln)
+        data_type: NUMBER
+      - name: store_count
+        synonyms: [number of stores, retail locations, shop count]
+        description: Number of locations classified as STORE
+        expr: COUNT_IF(location_type = 'STORE')
+        data_type: NUMBER
+
+  - name: gpc_taxonomy
+    description: GS1 Global Product Classification — Segment, Family, Class, Brick hierarchy
+    base_table: GS1_RETAIL_DB.CLASSIFICATION.GPC_TAXONOMY
+    dimensions:
+      - name: brick_code
+        synonyms: [GPC brick code, product code]
+        description: GPC Brick code — most granular classification level
+        expr: brick_code
+        data_type: TEXT
+      - name: brick_name
+        synonyms: [category, GPC brick, product category type]
+        description: GPC Brick name — e.g. "Breakfast Cereals/Grains"
+        expr: brick_name
+        data_type: TEXT
+      - name: class_name
+        synonyms: [GPC class, product class]
+        description: GPC Class — one level above Brick
+        expr: class_name
+        data_type: TEXT
+      - name: family_name
+        synonyms: [GPC family, product family]
+        description: GPC Family — e.g. "Dairy Products/Alternatives"
+        expr: family_name
+        data_type: TEXT
+      - name: segment_name
+        synonyms: [GPC segment, product segment, high level category]
+        description: GPC Segment — highest level e.g. "Food/Beverage/Tobacco"
+        expr: segment_name
+        data_type: TEXT
+    measures:
+      - name: brick_count
+        synonyms: [number of categories, category count]
+        description: Total number of GPC Brick categories
+        expr: COUNT(brick_code)
+        data_type: NUMBER
+
+  - name: epcis_events
+    description: >
+      EPCIS 2.0 Object Events — supply chain events covering commissioning (NovaBrand Factory),
+      shipping (NovaBrand to FreshMart DC), receiving (FreshMart DC),
+      and stocking (FreshMart stores)
+    base_table: GS1_RETAIL_DB.SUPPLY_CHAIN.EPCIS_OBJECT_EVENTS
+    dimensions:
+      - name: event_id
+        synonyms: [event identifier, EPCIS ID]
+        description: Unique identifier for each EPCIS supply chain event
+        expr: event_id
+        data_type: TEXT
+      - name: business_step
+        synonyms: [event type, supply chain step, EPCIS biz step, step]
+        description: Business step of the event — commissioning, shipping, receiving, stocking
+        expr: biz_step
+        data_type: TEXT
+      - name: disposition
+        synonyms: [product state, status, disposition]
+        description: State of the product at the time of the event — active, in_transit, in_progress
+        expr: disposition
+        data_type: TEXT
+      - name: event_date
+        synonyms: [scan date, event day, date of event]
+        description: Calendar date when the supply chain event occurred
+        expr: event_time::DATE
+        data_type: DATE
+      - name: gtin
+        synonyms: [product, item, GTIN in event]
+        description: GTIN of the product involved in the supply chain event
+        expr: gtin
+        data_type: TEXT
+      - name: lot_number
+        synonyms: [batch, batch number, lot]
+        description: Production lot or batch number associated with the event
+        expr: lot_number
+        data_type: TEXT
+      - name: expiry_date
+        synonyms: [best before, use by, expiry]
+        description: Product expiry or best-before date
+        expr: expiry_date
+        data_type: DATE
+    measures:
+      - name: total_events
+        synonyms: [event count, number of events, EPCIS event total]
+        description: Total number of EPCIS supply chain events
+        expr: COUNT(event_id)
+        data_type: NUMBER
+      - name: commissioning_events
+        synonyms: [products manufactured, items commissioned]
+        description: Number of commissioning events (product manufactured at NovaBrand factory)
+        expr: COUNT_IF(biz_step = 'commissioning')
+        data_type: NUMBER
+      - name: shipping_events
+        synonyms: [shipments, products shipped, despatch events]
+        description: Number of shipping events from NovaBrand to FreshMart DC
+        expr: COUNT_IF(biz_step = 'shipping')
+        data_type: NUMBER
+      - name: receiving_events
+        synonyms: [goods received, receiving, inbound events]
+        description: Number of receiving events at FreshMart distribution centre
+        expr: COUNT_IF(biz_step = 'receiving')
+        data_type: NUMBER
+      - name: stocking_events
+        synonyms: [shelved, put to shelf, stocked]
+        description: Number of stocking events at FreshMart stores
+        expr: COUNT_IF(biz_step = 'stocking')
+        data_type: NUMBER
+      - name: traceable_gtins
+        synonyms: [products with events, GTINs tracked, traceable products]
+        description: Number of distinct GTINs with at least one supply chain event
+        expr: COUNT(DISTINCT gtin)
+        data_type: NUMBER
+
+  - name: gdsn_sync
+    description: GDSN synchronisation log — tracks product data exchange between NovaBrand and FreshMart
+    base_table: GS1_RETAIL_DB.PRODUCT_MASTER.GDSN_SYNC_LOG
+    dimensions:
+      - name: sync_status
+        synonyms: [sync result, status]
+        description: Outcome of the GDSN sync — SUCCESS, FAILED, or PENDING
+        expr: sync_status
+        data_type: TEXT
+      - name: sync_type
+        synonyms: [full sync or delta, sync mode]
+        description: Type of sync — FULL (all attributes) or DELTA (changed attributes only)
+        expr: sync_type
+        data_type: TEXT
+      - name: sync_date
+        synonyms: [sync day, date synced]
+        description: Calendar date of the sync
+        expr: sync_timestamp::DATE
+        data_type: DATE
+      - name: gtin
+        synonyms: [product, item synced]
+        description: GTIN of the product that was synchronised
+        expr: gtin
+        data_type: TEXT
+    measures:
+      - name: total_syncs
+        synonyms: [sync count, number of syncs]
+        description: Total number of GDSN sync operations
+        expr: COUNT(sync_id)
+        data_type: NUMBER
+      - name: failed_syncs
+        synonyms: [sync failures, failed synchronisations]
+        description: Number of failed GDSN sync operations
+        expr: COUNT_IF(sync_status = 'FAILED')
+        data_type: NUMBER
+      - name: sync_failure_rate
+        synonyms: [sync failure percentage, error rate]
+        description: Percentage of GDSN syncs that failed
+        expr: ROUND(COUNT_IF(sync_status = 'FAILED') * 100.0 / NULLIF(COUNT(sync_id), 0), 2)
+        data_type: NUMBER
+
+  - name: verification
+    description: Verified by GS1 lookup history — GTIN and GLN validation requests
+    base_table: GS1_RETAIL_DB.VERIFICATION.VERIFIED_BY_GS1_LOOKUPS
+    dimensions:
+      - name: lookup_type
+        synonyms: [identifier type, GTIN or GLN]
+        description: Type of identifier looked up — GTIN or GLN
+        expr: lookup_type
+        data_type: TEXT
+      - name: lookup_result
+        synonyms: [verification result, valid or invalid, barcode check result]
+        description: Outcome of the lookup — VALID, INVALID, or NOT_FOUND
+        expr: lookup_result
+        data_type: TEXT
+      - name: requester_type
+        synonyms: [who looked up, lookup requester]
+        description: Type of entity performing the lookup — RETAILER, CONSUMER, REGULATOR
+        expr: requester_type
+        data_type: TEXT
+      - name: requester_country
+        synonyms: [lookup country, where the lookup came from]
+        description: Country of the entity performing the lookup
+        expr: requester_country
+        data_type: TEXT
+      - name: lookup_date
+        synonyms: [date of lookup, verification date]
+        description: Calendar date of the verification lookup
+        expr: lookup_timestamp::DATE
+        data_type: DATE
+    measures:
+      - name: total_lookups
+        synonyms: [verification count, lookup count, barcode checks]
+        description: Total number of Verified by GS1 lookup requests
+        expr: COUNT(lookup_id)
+        data_type: NUMBER
+      - name: valid_lookups
+        synonyms: [successful verifications, valid barcodes confirmed]
+        description: Number of lookups returning a VALID result
+        expr: COUNT_IF(lookup_result = 'VALID')
+        data_type: NUMBER
+      - name: not_found_lookups
+        synonyms: [unknown GTINs, unregistered barcodes, not found]
+        description: Number of lookups where the GTIN/GLN was not found in the registry
+        expr: COUNT_IF(lookup_result = 'NOT_FOUND')
+        data_type: NUMBER
+      - name: verification_success_rate
+        synonyms: [lookup success %, validation rate, barcode validity rate]
+        description: Percentage of lookups returning VALID — target 100%
+        expr: ROUND(COUNT_IF(lookup_result = 'VALID') * 100.0 / NULLIF(COUNT(lookup_id), 0), 2)
+        data_type: NUMBER
+
+relationships:
+  - name: product_to_gpc
+    left_table: product
+    right_table: gpc_taxonomy
+    relationship_columns:
+      - left_column: gpc_brick_code
+        right_column: brick_code
+    relationship_type: MANY_TO_ONE
+    join_type: LEFT
+
+  - name: epcis_to_product
+    left_table: epcis_events
+    right_table: product
+    relationship_columns:
+      - left_column: gtin
+        right_column: gtin
+    relationship_type: MANY_TO_ONE
+    join_type: LEFT
+
+  - name: epcis_to_location
+    left_table: epcis_events
+    right_table: location
+    relationship_columns:
+      - left_column: biz_location_gln
+        right_column: gln
+    relationship_type: MANY_TO_ONE
+    join_type: LEFT
+
+  - name: gdsn_to_product
+    left_table: gdsn_sync
+    right_table: product
+    relationship_columns:
+      - left_column: gtin
+        right_column: gtin
+    relationship_type: MANY_TO_ONE
+    join_type: LEFT
+
+verified_queries:
+  - name: active_gtin_count
+    question: How many active GTINs does NovaBrand have?
+    sql: |
+      SELECT COUNT(*) AS active_gtins
+      FROM GS1_RETAIL_DB.PRODUCT_MASTER.PRODUCT_ATTRIBUTES
+      WHERE gtin_status = 'ACTIVE';
+
+  - name: avg_completeness_by_category
+    question: What is the average product data completeness by product category?
+    sql: |
+      SELECT
+        p.gpc_brick_name AS product_category,
+        ROUND(AVG(p.attribute_completeness_pct), 2) AS avg_completeness_pct,
+        COUNT(*) AS gtin_count
+      FROM GS1_RETAIL_DB.PRODUCT_MASTER.PRODUCT_ATTRIBUTES p
+      GROUP BY 1
+      ORDER BY 2 ASC;
+
+  - name: stale_gdsn_products
+    question: Which GTINs have not been synced via GDSN in the last 30 days?
+    sql: |
+      SELECT
+        gtin,
+        product_description_short,
+        gpc_brick_name,
+        gdsn_last_sync_date,
+        DATEDIFF('day', gdsn_last_sync_date, CURRENT_TIMESTAMP()) AS days_since_sync
+      FROM GS1_RETAIL_DB.PRODUCT_MASTER.PRODUCT_ATTRIBUTES
+      WHERE gdsn_last_sync_date < DATEADD('day', -30, CURRENT_TIMESTAMP())
+      ORDER BY days_since_sync DESC;
+
+  - name: epcis_events_by_step
+    question: How many supply chain events occurred by business step?
+    sql: |
+      SELECT
+        biz_step AS business_step,
+        COUNT(*) AS event_count
+      FROM GS1_RETAIL_DB.SUPPLY_CHAIN.EPCIS_OBJECT_EVENTS
+      GROUP BY 1
+      ORDER BY 2 DESC;
+
+  - name: verification_success_rate
+    question: What is the GTIN verification success rate?
+    sql: |
+      SELECT
+        lookup_result,
+        COUNT(*) AS lookup_count,
+        ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) AS pct
+      FROM GS1_RETAIL_DB.VERIFICATION.VERIFIED_BY_GS1_LOOKUPS
+      GROUP BY 1
+      ORDER BY 2 DESC;
+
+  - name: products_below_95_completeness
+    question: Which products have a completeness score below 95%?
+    sql: |
+      SELECT
+        gtin,
+        product_description_short,
+        gpc_brick_name,
+        attribute_completeness_pct
+      FROM GS1_RETAIL_DB.PRODUCT_MASTER.PRODUCT_ATTRIBUTES
+      WHERE attribute_completeness_pct < 95
+      ORDER BY attribute_completeness_pct ASC;

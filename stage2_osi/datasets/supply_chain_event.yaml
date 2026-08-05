@@ -1,0 +1,90 @@
+# OSI Dataset: Supply Chain Event
+# Contributed by: GS1 (via Snowflake Semantic Views)
+# Apache Ossie (Incubating) — Open Semantic Interchange
+# License: Apache 2.0
+#
+# Generic supply chain event pattern based on EPCIS 2.0.
+# Contains NO proprietary data — structural template only.
+
+osi_version: "0.1"
+type: dataset
+
+dataset:
+  name: supply_chain_event
+  description: >
+    An event-based supply chain visibility dataset following the
+    What-When-Where-Why-How pattern. Each row captures a discrete
+    supply chain event (commissioning, shipping, receiving, stocking)
+    with links to product identifiers and location identifiers.
+    Based on GS1 EPCIS 2.0 standard structure.
+  domain: retail_supply_chain
+  source_standard: "GS1 EPCIS 2.0 / CBV 2.0"
+  license_note: "Structure only — EPCIS schema is a public ISO standard"
+
+  columns:
+    - name: event_id
+      data_type: VARCHAR(50)
+      role: primary_key
+      description: "Unique event identifier"
+
+    - name: event_time
+      data_type: TIMESTAMP
+      role: time_dimension
+      description: "When the event occurred"
+
+    - name: action
+      data_type: VARCHAR(20)
+      role: dimension
+      description: "ADD (new observation), OBSERVE (status update), DELETE (removal)"
+
+    - name: business_step
+      data_type: VARCHAR(100)
+      role: dimension
+      description: "What happened: commissioning, shipping, receiving, stocking, decommissioning"
+
+    - name: disposition
+      data_type: VARCHAR(100)
+      role: dimension
+      description: "State of the object: active, in_transit, in_progress, destroyed"
+
+    - name: read_point_id
+      data_type: VARCHAR(50)
+      role: foreign_key
+      description: "Location where the event was captured (scanner/reader location)"
+
+    - name: business_location_id
+      data_type: VARCHAR(50)
+      role: foreign_key
+      description: "Business context location (warehouse, store, factory)"
+
+    - name: product_id
+      data_type: VARCHAR(50)
+      role: foreign_key
+      description: "Product identifier involved in the event"
+
+    - name: lot_number
+      data_type: VARCHAR(50)
+      role: dimension
+      description: "Production batch/lot identifier"
+
+    - name: expiry_date
+      data_type: DATE
+      role: time_dimension
+      description: "Product expiry or best-before date"
+
+  event_types:
+    - commissioning
+    - packing
+    - shipping
+    - receiving
+    - unpacking
+    - stocking
+    - decommissioning
+
+  relationships:
+    - target: product_classification_taxonomy
+      join_key: product_id
+      type: many_to_one
+    - target: location_party
+      join_key: business_location_id
+      type: many_to_one

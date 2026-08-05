@@ -1,0 +1,50 @@
+# OSI Relationships: Product-Location-Event
+# Contributed by: GS1 (via Snowflake Semantic Views)
+# Apache Ossie (Incubating) — Open Semantic Interchange
+# License: Apache 2.0
+#
+# Defines the standard join paths between supply chain entities.
+
+osi_version: "0.1"
+type: relationships
+
+relationships:
+  - name: product_to_category
+    description: "Every product belongs to exactly one category in the taxonomy"
+    left_dataset: supply_chain_event
+    right_dataset: product_classification_taxonomy
+    join_columns:
+      left: product_category_code
+      right: brick_code
+    cardinality: many_to_one
+    join_type: left
+
+  - name: event_to_location
+    description: "Every supply chain event occurs at a specific business location"
+    left_dataset: supply_chain_event
+    right_dataset: location_party
+    join_columns:
+      left: business_location_id
+      right: location_id
+    cardinality: many_to_one
+    join_type: left
+
+  - name: event_to_product
+    description: "Every supply chain event involves a specific product"
+    left_dataset: supply_chain_event
+    right_dataset: product_master
+    join_columns:
+      left: product_id
+      right: product_id
+    cardinality: many_to_one
+    join_type: left
+
+  - name: product_to_verification
+    description: "Products can be looked up via the verification service"
+    left_dataset: identifier_verification_lookups
+    right_dataset: product_master
+    join_columns:
+      left: identifier_queried
+      right: product_id
+    cardinality: many_to_one
+    join_type: left

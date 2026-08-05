@@ -1,0 +1,141 @@
+# ============================================================
+# GS1 Retail Observability Platform — .gitignore
+# Security-first: never commit credentials, keys, or secrets
+# ============================================================
+
+# ----------------------------
+# Snowflake credentials & config
+# ----------------------------
+*.snowsql
+snowsql.config
+connections.toml
+~/.snowflake/
+config.toml
+.snowflake/
+snowflake_credentials.json
+snowflake_credentials.yaml
+
+# Environment & secrets
+.env
+.env.*
+*.env
+.envrc
+secrets.yaml
+secrets.json
+secrets.toml
+*_secret.*
+*_credentials.*
+*_token.*
+private_key.p8
+*.p8
+*.pem
+*.key
+rsa_key*
+
+# ----------------------------
+# Python
+# ----------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.venv/
+venv/
+env/
+ENV/
+.virtualenv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+htmlcov/
+
+# ----------------------------
+# Jupyter Notebooks
+# ----------------------------
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ----------------------------
+# Data files — never commit real or member data
+# ----------------------------
+*.csv
+*.parquet
+*.json.gz
+*.jsonl
+data/real/
+data/member/
+data/production/
+data/export/
+# Allow dummy data SQL files (they are safe synthetic data)
+!data/dummy/*.sql
+!data/dummy/*.py
+
+# ----------------------------
+# IDE & OS
+# ----------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V7
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ----------------------------
+# Snowflake CLI build artifacts
+# ----------------------------
+output/
+.packages/
+*.log
+*.tmp
+*.temp
+*.bak
+*.backup
+tmp/
+temp/
+logs/
+
+# ----------------------------
+# dbt (if added later)
+# ----------------------------
+target/
+dbt_packages/
+logs/
+profiles.yml
+
+# ----------------------------
+# Terraform / infra (if added later)
+# ----------------------------
+*.tfvars
+*.tfstate
+*.tfstate.*
+.terraform/

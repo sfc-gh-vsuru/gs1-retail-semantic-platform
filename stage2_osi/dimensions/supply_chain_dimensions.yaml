@@ -1,0 +1,96 @@
+# OSI Dimensions: Supply Chain Dimension Patterns
+# Contributed by: GS1 (via Snowflake Semantic Views)
+# Apache Ossie (Incubating) — Open Semantic Interchange
+# License: Apache 2.0
+#
+# Generic dimension patterns for supply chain analytics.
+
+osi_version: "0.1"
+type: dimensions
+
+dimensions:
+  - name: product_category
+    type: hierarchical
+    cardinality: medium
+    levels:
+      - segment
+      - family
+      - class
+      - brick
+    description: "Multi-level product classification for grouping and drill-down analytics"
+    applicable_to: product_datasets
+
+  - name: geography
+    type: hierarchical
+    cardinality: medium
+    levels:
+      - continent
+      - country
+      - region
+      - city
+    description: "Geographical hierarchy for location-based filtering and aggregation"
+    applicable_to: location_datasets
+
+  - name: time
+    type: temporal
+    cardinality: high
+    levels:
+      - year
+      - quarter
+      - month
+      - week
+      - day
+      - hour
+    description: "Standard temporal dimension for time-series analysis"
+    applicable_to: all_datasets
+
+  - name: supply_chain_role
+    type: categorical
+    cardinality: low
+    values:
+      - brand_owner
+      - retailer
+      - logistics_provider
+      - distributor
+      - regulator
+    description: "Role of a party in the supply chain ecosystem"
+    applicable_to: party_datasets
+
+  - name: event_type
+    type: categorical
+    cardinality: low
+    values:
+      - commissioning
+      - packing
+      - shipping
+      - receiving
+      - unpacking
+      - stocking
+      - decommissioning
+    description: "Type of supply chain event — based on EPCIS business steps"
+    applicable_to: event_datasets
+
+  - name: identifier_status
+    type: categorical
+    cardinality: low
+    values:
+      - active
+      - inactive
+      - retired
+      - suspended
+    description: "Lifecycle status of a registered identifier (product or location)"
+    applicable_to: registry_datasets
+
+  - name: data_quality_tier
+    type: categorical
+    cardinality: low
+    values:
+      - excellent
+      - good
+      - needs_enrichment
+    thresholds:
+      excellent: ">= 95%"
+      good: "85% - 94%"
+      needs_enrichment: "< 85%"
+    description: "Quality classification based on attribute completeness percentage"
+    applicable_to: any_dataset
