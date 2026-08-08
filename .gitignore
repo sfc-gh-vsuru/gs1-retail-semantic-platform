@@ -139,3 +139,4 @@ profiles.yml
 *.tfstate
 *.tfstate.*
 .terraform/
+GS1_Context/

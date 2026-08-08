@@ -1,4 +1,69 @@
-# GS1 Retail Observability Platform — Setup Guide
+# GS1 Retail Observability Platform — Setup Guide## 11b. AI Shopping Agent — Three-Way Grounding Comparison
+
+> Aligns with: GS1 US + Snowflake Pilot Executive Brief (Joel Traugott, June 2026)
+
+### Purpose
+
+Test the hypothesis that GS1 standardized product data produces more accurate, complete, and cost-efficient AI shopping agent answers than retailer-internal or scraped web data.
+
+### Tables Created
+
+| Table | Type | Rows | Purpose |
+|-------|------|------|---------|
+| `GROUNDING_GS1` | View | 10 | Denormalized GS1 GDM + nutrition + allergens (Path A) |
+| `GROUNDING_RETAILER` | Table | 10 | Degraded retailer PIM data: missing 40% of fields (Path B) |
+| `GROUNDING_SCRAPED` | Table | 13 | Noisy web scrape: duplicates, wrong values, marketing copy (Path C) |
+| `SHOPPING_QUESTIONS` | Table | 25 | Test suite with gold-standard answers across 5 categories |
+| `AGENT_RESPONSES` | Table | TBD | Measurement results: accuracy, tokens, latency, cost |
+| `PILOT_SUMMARY` | View | — | Aggregated comparison across paths |
+
+### How Path B (Retailer) Differs from Path A (GS1)
+
+- No nutrition data (field doesn't exist)
+- No GPC hierarchy (flat single-level category)
+- Free-text allergens ("Gluten") instead of structured booleans
+- Missing GTIN on 30% of products
+- 6-10 months stale
+- Retailer-specific SKU instead of global identifier
+- Inconsistent vendor naming ("NovaBrand" vs "Nova Brand" vs "NOVABRAND")
+
+### How Path C (Scraped) Differs from Path A (GS1)
+
+- No GTIN on any record (never exposed on web pages)
+- 3 duplicate products (same item from different URLs)
+- Marketing copy instead of structured product descriptions
+- Wrong nutrition values on 2 products (columns swapped)
+- 2 products miscategorized (Yoghurt as "Drinks", Tea as "Herbal Medicine")
+- Inconsistent weight formatting ("500 g" / "500g" / "0.5kg" / "1 Litre" / "1000ml")
+- Missing allergen data on 4 products
+- Noise fields: star_rating, review_count, availability, promo_text
+
+### Running the Comparison
+
+```sql
+-- Deploy grounding paths
+-- Run: sql/08_grounding_paths.sql
+
+-- Deploy test suite
+-- Run: sql/09_shopping_questions.sql
+
+-- Deploy measurement harness
+-- Run: sql/10_agent_harness.sql
+
+-- After running agent tests, view results:
+SELECT * FROM GS1_DB.DEMO.PILOT_SUMMARY;
+```
+
+### Expected Outcome
+
+| Path | Accuracy | Tokens | Latency | Why |
+|------|----------|--------|---------|-----|
+| GS1 | ~95% | Low (~450) | Fast (~1.2s) | Structured booleans, complete nutrition, standard taxonomy |
+| Retailer | ~62% | Medium (~680) | Medium (~1.8s) | Missing fields force agent to guess or say "unknown" |
+| Scraped | ~48% | High (~920) | Slow (~2.4s) | Noise, duplicates, wrong values require disambiguation |
+
+---
+
 
 > **Living document.** Updated at every implementation stage. Follow steps in order.
 > Last updated: Stage 0 — Project Initialisation

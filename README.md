@@ -119,7 +119,10 @@ GS1/
 │   ├── 04_semantic_views.sql    ← Semantic View DDL (6 tables, 20 dims, 12 metrics)
 │   ├── 05_dmf_observability.sql ← 14 DMF attachments across 5 tables
 │   ├── 06_access_control.sql    ← Tags, masking policies, role grants
-│   └── 07_cortex_analyst.sql    ← Internal stage for Cortex Analyst YAML
+│   ├── 07_cortex_analyst.sql    ← Internal stage for Cortex Analyst YAML
+│   ├── 08_grounding_paths.sql   ← Three-way AI agent comparison datasets
+│   ├── 09_shopping_questions.sql← 25 test questions + gold-standard answers
+│   └── 10_agent_harness.sql     ← Measurement table + scoring views
 │
 ├── semantic/
 │   └── gs1_retail_model.yaml    ← Cortex Analyst semantic model (6 tables + VQRs)
@@ -210,6 +213,48 @@ This project is a reference implementation for GS1's contribution to the [Open S
 | Dimension | Semantic View dimensions | `stage2_osi/dimensions/*.yaml` |
 | Relationship | Semantic View relationships | `stage2_osi/relationships/*.yaml` |
 | Context | Synonyms + comments | YAML descriptions + license headers |
+
+---
+
+## GS1 US Pilot Brief Alignment
+
+This MVP directly supports the **GS1 US + Snowflake Pilot Executive Brief** (Joel Traugott, June 2026) which proposes testing whether AI shopping agents give better, faster, cheaper answers when grounded on GS1 standardized product data versus scraped web data or internal retailer data.
+
+### Three-Way Grounding Comparison
+
+The pilot's core test runs the same AI agent on the same shopping questions across three data paths:
+
+| Path | Table | Attributes | Quality | Simulates |
+|------|-------|-----------|---------|-----------|
+| **A: GS1 Standardized** | `GROUNDING_GS1` (view) | 33 per product | Complete, structured, current | Authoritative GS1 GDM data |
+| **B: Retailer Internal** | `GROUNDING_RETAILER` | 14 per product | Partial (40% missing), stale, flat category | Typical retailer PIM system |
+| **C: Scraped Web** | `GROUNDING_SCRAPED` | ~12 useful + noise | Duplicates, wrong values, marketing copy | Web crawler output |
+
+### Shopping Question Test Suite
+
+25 standardized questions (`SHOPPING_QUESTIONS` table) across 5 categories:
+- **Allergen** (5 Qs) — "Which products are gluten-free?"
+- **Nutrition** (5 Qs) — "Which product has the highest protein?"
+- **Discovery** (5 Qs) — "Show me all beverages"
+- **Attribute** (5 Qs) — "What is the net weight of the Cheddar?"
+- **Multi-criteria** (5 Qs) — "Find a dairy-free beverage under 50 calories"
+
+Each question has a validated gold-standard answer for scoring agent accuracy.
+
+### Measurement Harness
+
+The `AGENT_RESPONSES` table captures per-question, per-path:
+- **Accuracy** — does the answer match gold standard?
+- **Completeness** — did it include all required attributes?
+- **Token use** — input + output tokens consumed
+- **Latency** — response time in milliseconds
+- **Cost** — Snowflake credits used
+
+The `PILOT_SUMMARY` view aggregates results to prove the hypothesis: GS1 data = higher accuracy + lower cost.
+
+### Hypothesis to Prove
+
+> Standardized GS1 product data produces more accurate AI agent answers while consuming fewer tokens, lower latency, and less compute cost than retailer-internal or scraped web data.
 
 ---
 
